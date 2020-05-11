@@ -76,7 +76,8 @@ modelformulas <- c("cub-fx-nonanom"= "anycases ~ 0 + district + MIRsummarystat +
 #modelnames <- names(modelformulas)
 
 # or choose just some selection
-modelnames <- c("cub-fx-nonanom")
+modelnames <- c("cub-fx-nonanom",
+                "tp-fx-anom")
 
 # where are the human data located?
 # example of a file with directories an drive:
@@ -585,7 +586,8 @@ rm(mean2data)
 gc()
 
 # include the mosquito summary statistic
-names(randeffs) <- c("year","MIRsummarystat")
+names(randeffs) <- c("year","num", "denom", "MIRsummarystat")
+randeffs <- randeffs[c("year","MIRsummarystat")]
 
 # figure out which need imputed MIGR, etc.
 fullcasemat$year <- as.numeric(format(fullcasemat$weekstartdate, "%Y"))
