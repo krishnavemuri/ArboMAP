@@ -340,10 +340,11 @@ wnv <- wnv[wnv$district %in% unique(district_shapes$district),]
 wnv$district <- factor(wnv$district)
 
 # calculate simple metric of infection
-wnv$indicator <- wnv$Tested*(wnv$WNV == "pos")
+wnv$indicator <- 1*(wnv$WNV == "POS")
 wnv <- group_by(wnv, year)
-randeffs <- dplyr::summarise(totpos=sum(indicator, na.rm=TRUE),
-                             tottest=sum(Tested, na.rm=TRUE))
+randeffs <- dplyr::summarise(wnv,
+                             totpos=sum(indicator, na.rm=TRUE),
+                             tottest=n())
 randeffs$mosqinfect <- randeffs$totpos / randeffs$tottest
 ```
 
@@ -353,8 +354,8 @@ randeffs$mosqinfect <- randeffs$totpos / randeffs$tottest
 # import data
 human <- read.csv(humandatafile)
 begrow <- nrow(human)
-human$chardate <- as.character(levels(human$date))[as.numeric(human$date)]
-human$date <- as.Date(human$onsetdate, "%d%b%Y")
+human$chardate <- as.character(human$onsetdate)
+human$date <- as.Date(human$onsetdate, "%m/%d/%Y")
 human$creationyear <- as.numeric(format(human$date, "%Y"))
 human$creationmonth <- as.numeric(format(human$date, "%m"))
 # simplify district names
