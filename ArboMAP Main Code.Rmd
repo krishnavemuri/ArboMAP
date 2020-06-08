@@ -81,7 +81,7 @@ modelnames <- c("cub-fx-nonanom",
 
 # where are the human data located?
 # example of a file with directories an drive:
-humandatafile <- ".\\human case data\\simulated michigan human case data.csv"
+humandatafile <- ".\\human case data\\updated michigan human case data.csv"
 
 # set up dates to constrain the human, mosquito, and weather data
 humanbelievableyears    <- c(2004:2018)
@@ -104,7 +104,7 @@ maxhumandesiredyear <- 2019
 humancasealpha <- 0.02
 
 # which week are we producing the graphs for?
-weekinquestion <- as.Date("2018-07-15", "%Y-%m-%d")
+weekinquestion <- as.Date("2018-09-01", "%Y-%m-%d")
 
 # where are the weather csv files stored?
 weatherpathstr <- ".\\weather data\\"
@@ -118,7 +118,7 @@ var1name <- "tmeanc"
 var2name <- "vpd"
 
 # where are the mosquito test files located?
-mosqfile <- ".\\mosquito data\\simulated michigan mosquito data.csv"
+mosqfile <- ".\\mosquito data\\updated michigan mosquito data.csv"
 
 # to which two other years do we want to compare the current year's predictions?
 compyear1 <- 2012
@@ -144,24 +144,6 @@ minhumandesireddatestr <- strftime(minhumandesireddate, '%A')
 # set up lag and regression information
 laglen   <- 181
 dlagdeg  <- 8
-
-# mac file setup
-if (ostype == "mac") {
-
-  # where are the human data located?
-  # example of a file with directories an drive:
-  humandatafile <- "./human case data/simulated human case data.csv"
-  
-  # where are the weather csv files stored?
-  weatherpathstr <- "./weather data/"
-  
-  # what is the name of the summary file to be created?
-  weathersummaryfile <- "weather data summary file.csv"
-  
-  # where are the mosquito test files located?
-  mosqfile <- "./mosquito data/simulated mosquito tests.csv"
-  
-}
 ```
 
 # Data used for predictions
@@ -351,12 +333,13 @@ randeffs$mosqinfect <- randeffs$totpos / randeffs$tottest
 
 
 ```{r humandata, include=FALSE, echo=TRUE}
-
 # import data
 human <- read.csv(humandatafile)
 begrow <- nrow(human)
 human$chardate <- as.character(human$onsetdate)
-human$date <- as.Date(human$onsetdate, "%m/%d/%Y")
+#human$date <- as.Date(human$onsetdate, "%m/%d/%Y")
+human$date <- as.Date(human$onsetdate, "%d-%b-%y")
+
 human$creationyear <- as.numeric(format(human$date, "%Y"))
 human$creationmonth <- as.numeric(format(human$date, "%m"))
 # simplify district names
