@@ -2,7 +2,7 @@
 title: "ArboMAP: Arbovirus Modeling and Prediction   \nto Forecast Mosquito-Borne Disease Outbreaks"
 author: "Summary of Model Outputs (v2.2)   \nJustin K. Davis and Michael C. Wimberly  \n(justinkdavis@ou.edu, mcwimberly@ou.edu)  \nGeography and Environmental Sustainability, University of Oklahoma"
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -63,12 +63,12 @@ ostype <- "windows"
 if (!(ostype %in% c("windows", "mac"))) { ostype <- "windows" }
 
 # model formulas
-modelformulas <- c("cub-fx-nonanom"= "anycases ~ 0 + district + MIRsummarystat + s(lag, by=var1, bs='cr', fx=TRUE, k=6) + s(lag, by=var2, bs='cr', fx=TRUE, k=6)",
-                   "cub-fx-anom"   = "anycases ~ 0 + district + MIRsummarystat + s(lag, by=anom_var1, bs='cr', fx=TRUE, k=6) + s(lag, by=anom_var2, bs='cr', fx=TRUE, k=6) + s(doy, bs='cr')",
-                   "cub-sv-nonanom"= "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=var1, bs='cr', fx=TRUE, k=6) + te(lag, doymat, by=var2, bs='cr', fx=TRUE, k=6)",
-                   "cub-sv-anom"   = "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=anom_var1, bs='cr', fx=TRUE, k=6) + te(lag, doymat, by=anom_var2, bs='cr', fx=TRUE, k=6) + s(doy, bs='cr')",
+modelformulas <- c("cub-fx-nonanom"= "anycases ~ 0 + district + MIRsummarystat + s(lag, by=var1, bs='cr') + s(lag, by=var2, bs='cr')",
+                   "cub-fx-anom"   = "anycases ~ 0 + district + MIRsummarystat + s(lag, by=anom_var1, bs='cr') + s(lag, by=anom_var2, bs='cr') + s(doy, bs='cr')",
+                   "cub-sv-nonanom"= "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=var1, bs='cr') + te(lag, doymat, by=var2, bs='cr')",
+                   "cub-sv-anom"   = "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=anom_var1, bs='cr') + te(lag, doymat, by=anom_var2, bs='cr') + s(doy, bs='cr')",
                    "tp-fx-nonanom" = "anycases ~ 0 + district + MIRsummarystat + s(lag, by=var1, bs='tp') + s(lag, by=var2, bs='tp')",
-                   "tp-fx-anom"    = "anycases ~ 0 + district + MIRsummarystat + s(lag, by=anom_var1, bs='tp') + s(lag, by=anom_var2, bs='tp') + s(doy, bs='cr')",
+                   "tp-fx-anom"    = "anycases ~ 0 + district + MIRsummarystat + s(lag, by=anom_var1, bs='tp') + s(lag, by=anom_var2, bs='tp') + s(doy, bs='tp')",
                    "tp-sv-nonanom" = "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=var1, bs='tp') + te(lag, doymat, by=var2, bs='tp')",
                    "tp-sv-anom"    = "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=anom_var1, bs='tp') + te(lag, doymat, by=anom_var2, bs='tp') + s(doy, bs='tp')")
 
@@ -76,14 +76,15 @@ modelformulas <- c("cub-fx-nonanom"= "anycases ~ 0 + district + MIRsummarystat +
 #modelnames <- names(modelformulas)
 
 # or choose just some selection
-modelnames <- c("cub-fx-nonanom")
+modelnames <- c("cub-fx-nonanom",
+                "tp-sv-anom")
 
 # where are the human data located?
 # example of a file with directories an drive:
 humandatafile <- "C:\\home\\work\\davis\\WNV repository\\South Dakota\\human\\20-07-15 - SD human WNV.csv"
 
 # set up dates to constrain the human, mosquito, and weather data
-humanbelievableyears    <- c(2004:2018)
+humanbelievableyears    <- c(2004:2019)
 mosquitobelievableyears <- c(2004:2020)
 envbelievableyears      <- 2000:2020
 
@@ -97,18 +98,16 @@ maxenvbelieveyear <- max(envbelievableyears)
 
 # set up the desired human years
 minhumandesiredyear <- 2004
-maxhumandesiredyear <- 2019
+maxhumandesiredyear <- 2020
 
 # cull some proportion of the outlying human cases
 humancasealpha <- 0.02
 
 # which week are we producing the graphs for?
-weekinquestion <- as.Date("2020-07-22", "%Y-%m-%d")
+weekinquestion <- as.Date("2020-07-27", "%Y-%m-%d")
 
 # where are the weather csv files stored?
-weatherpathstr <- ".\\weather data\\"
-# example of a hard-coded directory
-weatherpathstr <- "C:\\\home\work\\davis\\WNV repository\\South Dakota\\weather\\"
+weatherpathstr <- "C:\\home\\work\\davis\\WNV repository\\South Dakota\\weather\\"
 
 # what is the name of the summary file to be created?
 weathersummaryfile <- "weather data summary file.csv"
@@ -208,10 +207,10 @@ for (curcol in c(var1name, var2name)) {
     weather$tempvar <- weather[,curcol]
     tempmod <- bam(tempvar ~ district + s(doy, bs="cc", by=district), data=weather, discrete=TRUE)
     weather[,paste("anom_", curcol, sep="")] <- resid(tempmod)
-    
+
 }
 weather$tempvar <- NULL
- 
+
 # plot normals and this year
 weather$var1 <- weather[,which(colnames(weather) == var1name)]
 weather$var2 <- weather[,which(colnames(weather) == var2name)]
@@ -231,7 +230,8 @@ doymet <- dplyr::summarise(weather,
                            anom_max_var1 = max(anom_var1, na.rm=TRUE),
                            anom_max_var2 = max(anom_var2, na.rm=TRUE),
                            anom_min_var1 = min(anom_var1, na.rm=TRUE),
-                           anom_min_var2 = min(anom_var2, na.rm=TRUE))
+                           anom_min_var2 = min(anom_var2, na.rm=TRUE),
+                             .groups="keep")
 weather <- ungroup(weather)
 
 thisyear <- max(weather$year, na.rm=TRUE)
@@ -249,7 +249,8 @@ thisyear <- dplyr::summarize(thisyear,
                              anom_max_var1 = max(anom_var1, na.rm=TRUE),
                              anom_max_var2 = max(anom_var2, na.rm=TRUE),
                              anom_min_var1 = min(anom_var1, na.rm=TRUE),
-                             anom_min_var2 = min(anom_var2, na.rm=TRUE))
+                             anom_min_var2 = min(anom_var2, na.rm=TRUE),
+                             .groups="keep")
 
 weather$var1 <- NULL
 weather$var2 <- NULL
@@ -385,6 +386,7 @@ wnv$est <- predict(infectglm, newdata=wnv, type="response")
 # predict random effects for all years
 randeffs <- data.frame(year=as.numeric(rownames(random.effects(infectglm)$year)),
                        mosqinfect=random.effects(infectglm)$year$`(Intercept)`)
+                       #mosqinfect=random.effects(infectglm)$year$dminus)
 
 ```
 ```{r fig.width=7, fig.height=3, echo=FALSE, include=TRUE}
@@ -433,7 +435,7 @@ fullcasemat <- expand.grid(sort(unique(human$district)), filledweeks)
 names(fullcasemat) <- c("district", "weekstartdate")
 fullcasemat$anycases   <- rep(0, nrow(fullcasemat))
 fullcasemat$totalcases <- rep(0, nrow(fullcasemat))
-fullcasemat$observed   <- 1*(as.numeric(format(fullcasemat$weekstartdate, "%Y")) %in% humanbelievableyears)
+fullcasemat$observed <- 1*(as.numeric(format(fullcasemat$weekstartdate, "%Y")) %in% humanbelievableyears)
 
 # mark those district-weeks which are in the modeled set
 fullcasemat$weeknum <- as.numeric(format(fullcasemat$weekstartdate, "%U"))
@@ -484,7 +486,8 @@ mosqmopreds$preds <- predict(infectglm, newdata=mosqmopreds, type="response", al
 mosqmopreds <- group_by(mosqmopreds, dminus, year)
 mosqmopreds <- dplyr::summarize(mosqmopreds,
                          preds=mean(preds, na.rm=TRUE),
-                         doy=mean(doy, na.rm=TRUE))
+                         doy=mean(doy, na.rm=TRUE),
+                             .groups="keep")
 thisyear1   <- mosqmopreds[mosqmopreds$year == maxmosqbelieveyear,]
 comparison1 <- mosqmopreds[mosqmopreds$year == compyear1,]
 comparison2 <- mosqmopreds[mosqmopreds$year == compyear2,]
@@ -497,7 +500,8 @@ if (sum(!is.na(thisyeardot$doy)) > 20) {
   thisyeardot <- group_by(thisyeardot, rounddoy)
   thisyeardot <- dplyr::summarize(thisyeardot,
                         meanpos = mean(wnv_result, na.rm=TRUE),
-                        meandoy = mean(doy, na.rm=TRUE))
+                        meandoy = mean(doy, na.rm=TRUE),
+                             .groups="keep")
   thisplot <- ggplot(data=mosqmopreds) + geom_line(data=mosqmopreds, aes(x=doy, y=preds, group=year),
                                                    color="grey", alpha=0.5) +
     geom_line(data=comparison1, aes(x=doy, y=preds), color="blue") +
@@ -534,7 +538,8 @@ In the graph below, positive districts by week are shown over all years. Only we
 ```{r humandatasummary, echo=FALSE, include=TRUE, fig.width=7, fig.height=3.5}
 fullcasemat$weeknum <- as.numeric(format(fullcasemat$weekstartdate, "%U"))
 fullcasemat <- group_by(fullcasemat, weeknum)
-sumanyhumancases <- dplyr::summarise(fullcasemat, totany = sum(anycases, na.rm=TRUE))
+sumanyhumancases <- dplyr::summarise(fullcasemat, totany = sum(anycases, na.rm=TRUE),
+                             .groups="keep")
 fullcasemat <- ungroup(fullcasemat)
 
 ggplot(sumanyhumancases) + geom_line(aes(x=weeknum, y=totany)) +
@@ -582,7 +587,8 @@ weather$doy <- as.numeric(format(weather$date, "%j"))
 weather <- group_by(weather, district, doy)
 districtdoymean <- dplyr::summarize(weather,
                            meanvar1=mean(var1, na.rm=TRUE),
-                           meanvar2=mean(var2, na.rm=TRUE))
+                           meanvar2=mean(var2, na.rm=TRUE),
+                             .groups="keep")
 weather <- ungroup(weather)                           
 
 weather <- left_join(weather, districtdoymean,
@@ -698,7 +704,7 @@ yearfiller <- left_join(yearfiller, randeffs, by="year")
 yearfiller$shouldimpute <- is.na(yearfiller$MIRsummarystat) & (yearfiller$year %in% humanbelievableyears)
 
 # replace missing with zeros (i.e. average risk)
-yearfiller$MIRsummarystat <- mean(yearfiller$MIRsummarystat, na.rm=TRUE)
+yearfiller$MIRsummarystat[is.na(yearfiller$MIRsummarystat)] <- mean(yearfiller$MIRsummarystat, na.rm=TRUE)
 
 # figure out which years need an exactfit column
 yearsneedingcolumns <- yearfiller$year[which(yearfiller$shouldimpute)]
@@ -809,7 +815,8 @@ tempdf <- group_by(tempdf, weekstartdate, model)
 tempdf <- dplyr::summarize(tempdf,
                     obs=mean(anycases, na.rm=TRUE),
                     est=mean(pred, na.rm=TRUE),
-                    week=mean(weeknum, na.rm=TRUE))
+                    week=mean(weeknum, na.rm=TRUE),
+                             .groups="keep")
 
 tempdf$newwe <- (tempdf$week - minhumanobsweek) / (maxhumanobsweek - minhumanobsweek + 1)
 tempdf$year <- as.numeric(format(tempdf$weekstartdate, "%Y"))
@@ -820,7 +827,8 @@ preds$year <- as.numeric(format(preds$weekstartdate, "%Y"))
 tempdf2 <- preds[preds$year == as.numeric(format(weekinquestion, "%Y")),]
 tempdf2 <- group_by(tempdf2, weekstartdate, model)
 tempdf2 <- dplyr::summarize(tempdf2,
-                            pred=mean(pred, na.rm=TRUE))
+                            pred=mean(pred, na.rm=TRUE),
+                             .groups="keep")
 tempdf2$weeknum <- as.numeric(format(tempdf2$weekstartdate, "%U"))
 tempdf2 <- tempdf2[tempdf2$weeknum >= minhumanobsweek,]
 tempdf2 <- tempdf2[tempdf2$weeknum <= maxhumanobsweek,]
@@ -892,7 +900,8 @@ tempdf <- preds
 tempdf <- group_by(tempdf, weekstartdate, model)
 tempdf <- dplyr::summarize(tempdf,
                     obs=mean(anycases, na.rm=TRUE),
-                    est=mean(pred, na.rm=TRUE))
+                    est=mean(pred, na.rm=TRUE),
+                             .groups="keep")
 tempdf$year <- as.numeric(format(tempdf$weekstartdate, "%Y"))
 tempdf$month <- as.numeric(format(tempdf$weekstartdate, "%m"))
 tempdf$weeknum <- as.numeric(format(tempdf$weekstartdate, "%U"))
@@ -927,7 +936,8 @@ preds <- group_by(preds, year, model)
 yearlies <- dplyr::summarise(preds,
                              totpos = sum(anycases, na.rm=TRUE),
                              totest = sum(pred,     na.rm=TRUE),
-                             totcases = sum(totalcases, na.rm=TRUE))
+                             totcases = sum(totalcases, na.rm=TRUE),
+                             .groups="keep")
 
 yearlies$weight <- 1
 
@@ -971,11 +981,11 @@ We visualize the raw estimated risk for `r weekinquestion` below. If a district 
 
 ```{r shapefile, include=FALSE, echo=FALSE, warnings=FALSE}
 district_shapes <- counties(state=statetomodel, cb=TRUE)
-district_shapes$NAME <- simplifynames(district_shapes$NAME)
-district_shapes$id <- rownames(district_shapes@data)
-projected_districts.df <- tidy(district_shapes)
-projected_districts.df <- left_join(projected_districts.df, district_shapes@data, by="id")
-projected_districts.df$district <- simplifynames(projected_districts.df$NAME)
+district_shapes$district <- simplifynames(district_shapes$NAME)
+# district_shapes$id <- district_shapes$NAME
+# projected_districts.df <- broom::tidy(district_shapes)
+# projected_districts.df <- left_join(projected_districts.df, district_shapes@data, by="id")
+# projected_districts.df$district <- simplifynames(projected_districts.df$NAME)
 
 # get this week's predictions
 thisweek <- preds[preds$weekstartdate >= weekinquestion,]
@@ -985,46 +995,40 @@ thisweek <- thisweek[c("model", "district", "pred")]
 tempdf2 <- data.frame()
 for (curmodel in unique(thisweek$model)) {
 
-  tempdf <- projected_districts.df
+  tempdf <- district_shapes
   tempdf <- left_join(tempdf, thisweek, by="district")
   tempdf$pred[is.na(tempdf$pred)] <- min(tempdf$pred, na.rm=TRUE)
   tempdf$model <- curmodel
   
-  tempdf2 <- bind_rows(tempdf2, tempdf)
-
-}
-projected_districts.df <- tempdf2
-```
-```{r shapefile2, include=TRUE, echo=FALSE, fig.width=7, fig.height=8}
-thisplot <- ggplot(projected_districts.df) +
-      aes(long,lat,fill=pred,group=group,id=id,guides=FALSE) +
-      geom_polygon() + xlab("") + ylab("") +
-      geom_path(color="black") +
+  thisplot <- ggplot(tempdf) +
+      geom_sf(aes(fill=pred)) + xlab("") + ylab("") +
       theme(legend.position="bottom") +
       scale_fill_distiller(palette = "Spectral", limits=c(0,1),
                                                  breaks = c(0,1),
                                                  labels = c("Will definitely not\nreport any cases",
                                                             "Will definitely\nreport some cases"),
                                                      name = "") +
-      coord_map() + ggtitle(paste("Estimate for week beginning ",
-                            weekinquestionSun,
-                            sep="")) +
+      ggtitle(paste("Estimate for week beginning ",
+                    weekinquestionSun,
+                    " (", curmodel, ")",
+                    sep="")) +
         theme(panel.grid.major=element_blank(), panel.grid.minor=element_blank(),
             axis.ticks = element_blank(), axis.text.x = element_blank(),
             axis.text.y = element_blank(), axis.title.x=element_blank(),
             axis.title.y = element_blank(),
             legend.position="bottom",
             legend.key.width=unit(1, "cm"),
-            legend.key.height=unit(0.25,"cm")) +
-  facet_wrap(~model, ncol=2)
-plot(thisplot)
+            legend.key.height=unit(0.25,"cm"))
+  plot(thisplot)
+}
 ```
 
 This map indicates whether probabilities reported in the previous map are higher (red) than average, lower (blue) than average, or right about normal (yellow) compared to the same week in previous years.
 
 ```{r riskcalcs, include=TRUE, echo=FALSE, fig.width=7, fig.height=3.5}
 preds <- group_by(preds, district, weekstartdate)
-tempdf <- dplyr::summarize(preds, pred = mean(pred, na.rm=TRUE))
+tempdf <- dplyr::summarize(preds, pred = mean(pred, na.rm=TRUE),
+                             .groups="keep")
 fullcasemat$pred <- NULL
 fullcasemat$var1 <- NULL
 fullcasemat$var2 <- NULL
@@ -1083,14 +1087,12 @@ doypreds$riskcategory <- " About average    "
 doypreds$riskcategory[doypreds$percentile <= riskalpha/2] <- " Lower than usual    "
 doypreds$riskcategory[doypreds$percentile >= 1-(riskalpha/2)] <- " Higher than usual    "
 doypredscurrent <- doypreds[doypreds$year == as.numeric(format(weekinquestion, "%Y")),]
-projected_districts.df <- left_join(projected_districts.df, doypredscurrent,
+
+projected_districts.df <- left_join(district_shapes, doypredscurrent,
                                    by="district")
 projected_districts.df$riskcategory[is.na(projected_districts.df$riskcategory)] <- " Not able to model    "
 thisplotrisk <- ggplot(projected_districts.df) +
-      aes(long,lat,fill=riskcategory,group=group,guides=FALSE) +
-      geom_polygon() +
-      geom_path(color="black") +
-      coord_map() +
+      geom_sf(aes(fill=riskcategory)) +
       ggtitle("") +
       theme(text=element_text(size=15)) +
       theme(plot.title=element_text(size=15),
