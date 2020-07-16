@@ -73,11 +73,11 @@ modelformulas <- c("cub-fx-nonanom"= "anycases ~ 0 + district + MIRsummarystat +
                    "tp-sv-anom"    = "anycases ~ 0 + district + MIRsummarystat + te(lag, doymat, by=anom_var1, bs='tp') + te(lag, doymat, by=anom_var2, bs='tp') + s(doy, bs='tp')")
 
 ## run all listed models
-modelnames <- names(modelformulas)
+#modelnames <- names(modelformulas)
 
 # or choose just some selection
-#modelnames <- c("cub-fx-nonanom",
-#                "tp-sv-anom")
+modelnames <- c("cub-fx-nonanom",
+                "tp-sv-anom")
 
 # where are the human data located?
 # example of a file with directories an drive:
