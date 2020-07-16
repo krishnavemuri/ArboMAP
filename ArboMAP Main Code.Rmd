@@ -55,7 +55,7 @@ for (package in packages) {
 
 ```{r setoptions, include=FALSE, echo=FALSE}
 # state to model
-statetomodel <- "SD"
+statetomodel <- "LA"
 
 # operating system
 # it's possible we could detect this on our own, but it's simpler for the user to simply specify
@@ -81,11 +81,11 @@ modelnames <- c("cub-fx-nonanom",
 
 # where are the human data located?
 # example of a file with directories an drive:
-humandatafile <- "C:\\home\\work\\davis\\WNV repository\\South Dakota\\human\\20-07-15 - SD human WNV.csv"
+humandatafile <- "C:\\home\\work\\davis\\WNV repository\\Louisiana\\human\\20-07-15 - LA human data.csv"
 
 # set up dates to constrain the human, mosquito, and weather data
 humanbelievableyears    <- c(2004:2019)
-mosquitobelievableyears <- c(2004:2020)
+mosquitobelievableyears <- c(2012,2014:2020)
 envbelievableyears      <- 2000:2020
 
 # derive boundaries from the given sets
@@ -107,7 +107,7 @@ humancasealpha <- 0.02
 weekinquestion <- as.Date("2020-07-27", "%Y-%m-%d")
 
 # where are the weather csv files stored?
-weatherpathstr <- "C:\\home\\work\\davis\\WNV repository\\South Dakota\\weather\\"
+weatherpathstr <- "C:\\home\\work\\davis\\WNV repository\\Louisiana\\weather\\"
 
 # what is the name of the summary file to be created?
 weathersummaryfile <- "weather data summary file.csv"
@@ -118,7 +118,7 @@ var1name <- "tmeanc"
 var2name <- "vpd"
 
 # where are the mosquito test files located?
-mosqfile <- "C:\\home\\work\\davis\\WNV repository\\South Dakota\\mosquito\\20-07-15 - mosquito testing records.csv"
+mosqfile <- "C:\\home\\work\\davis\\WNV repository\\Louisiana\\mosquito\\19-08-29 - reconciled mosquito data.csv"
 
 # to which two other years do we want to compare the current year's predictions?
 compyear1 <- 2012
@@ -308,96 +308,21 @@ weather <- weather[weather$district %in% unique(district_shapes$district),]
 
 ```{r mosquitodataread, echo=FALSE} 
 wnv <- read.csv(mosqfile, stringsAsFactors=FALSE)
-wnv$col_date <- as.Date(wnv$col_date, "%m/%d/%Y")
-wnv$year <- as.numeric(format(wnv$col_date, "%Y"))
 
 # cull mosquito data which are not in the correct years
 wnv <- wnv[wnv$year %in% mosquitobelievableyears,]
 ```
 
-
-```{r mosquitodataprocess, echo=FALSE}
-# convert district to factor
-wnv$district <- simplifynames(wnv$district)
-diagnostic_mosquitodistricts <- unique(wnv$district)
-# remove any which do not belong
-wnv <- wnv[wnv$district %in% unique(district_shapes$district),]
-wnv$district <- factor(wnv$district)
-
-# figure out how many rows we start with
-nrow1 <- nrow(wnv)
-
-# create some variables we can use to filter
-wnv$col_year <- as.numeric(format(wnv$col_date, "%Y"))
-wnv$doy      <- as.numeric(format(wnv$col_date, "%j"))
-wnv$weeknum  <- as.numeric(format(wnv$col_date, "%U"))
-wnv$species <- NULL
-wnv$district <- factor(wnv$district)
-wnv$district <- droplevels(wnv$district)
-
-# get rid of those which don't have a result
-wnv <- wnv[which(!is.na(wnv$wnv_result)),]
-wnv <- wnv[which(!is.na(wnv$doy)),]
-
-# delete anything before a certain day
-wnv <- wnv[which(wnv$doy >= 140),]
-# delete anything after a certain day
-wnv <- wnv[which(wnv$doy <= 214),]
-
-# after cleaning, how many do we have?
-nrow2 <- nrow(wnv)
-nrow3 <- nrow(wnv[wnv$year == max(wnv$year, na.rm=TRUE),])
-
-tempdf <- wnv[wnv$year == max(wnv$year, na.rm=TRUE),]
-tempdf <- tempdf[!is.na(tempdf$wnv_result),]
-wnvdenominator <- nrow(tempdf)
-wnvnumerator <- nrow(tempdf[tempdf$wnv_result == 1,])
-
-numpos <- wnvnumerator
-perpos <- 100*round(wnvnumerator/wnvdenominator, 3)
-```
-
-There are `r nrow2` samples in the vector testing database. For `r max(wnv$year, na.rm=TRUE)`, there are `r nrow3` tested samples, with `r numpos` (`r perpos`%) positive. The estimated risk of human infection due to the early-season vector infection growth rate is shown below. Higher means that the pathogen is spreading more rapidly among vectors, and more human cases should be expected. If an estimate does not appear in a year, it is likely because the `mosquitobelievableyears` variable in ArboMAP was not set to include it; i.e. ArboMAP was told to disregard mosquito infection data for this year. 
+The table below shows the relative risk per year according to the mosquito data.
 
 ```{r mosquitodataprocess2, fig.width=7, fig.height=3, echo=FALSE, include=FALSE}
-# figure out how many distinct districts we have left
-districtlist           <- data.frame(district=unique(wnv$district))
-distinctdistricts      <- length(unique(wnv$district))
-districtlist$districtnum <- seq(from=1, to=distinctdistricts, by=1)
-wnv <- merge(x=wnv, y=districtlist,
-             by="district",
-             all=TRUE)
-
-# create a variable that at least has a little chance of being orthogonal to 1.
-wnv$dminus <- wnv$doy - mean(wnv$doy, na.rm=TRUE)
-
-# make sure all the observations have a stratum and year
-wnv <- wnv[!is.na(wnv$year),]
-wnv$year <- factor(wnv$year)
-
-# run a random effect model on orthogonalized data
-infectglm <- glmer(wnv_result ~ 1+dminus+
-                    (0+1|year) +
-                    (0+dminus|year),
-                  family=binomial(),
-                  data=wnv)
-wnv$est <- predict(infectglm, newdata=wnv, type="response")
-
-# predict random effects for all years
-randeffs <- data.frame(year=as.numeric(rownames(random.effects(infectglm)$year)),
-                       mosqinfect=random.effects(infectglm)$year$`(Intercept)`)
-                       #mosqinfect=random.effects(infectglm)$year$dminus)
-
+randeffs <- wnv
+randeffs$mosqinfect <- randeffs$numpos / randeffs$total
+randeffs$mosqinfect <- randeffs$mosqinfect - mean(randeffs$mosqinfect, na.rm=TRUE)
 ```
 ```{r fig.width=7, fig.height=3, echo=FALSE, include=TRUE}
-thisplot <- ggplot(randeffs) + geom_point(aes(x=year, y=mosqinfect)) +
-  geom_abline(slope=0, intercept=0, linetype=2) +
-  scale_x_continuous(breaks=minmosqbelieveyear:maxmosqbelieveyear) +
-  theme(axis.text.x=element_text(angle=45, hjust=1),
-        panel.grid.minor=element_blank(),
-        panel.grid.major.y=element_blank())+
-  xlab("") + ylab("Relative risk due to\nvector infection growth rate")
-plot(thisplot)
+randeffs <- randeffs[c("year", "mosqinfect")]
+kable(randeffs)
 ```
 
 ```{r humandata, include=FALSE, echo=TRUE}
@@ -472,63 +397,6 @@ observedbefore <- sum(tempdf$totalcases, na.rm=TRUE)
 observedtotal  <- sum(fullcasemat$totalcases, na.rm=TRUE)
 weekinquestionreformat <- format(weekinquestionSun, "%m-%d")
 observedfraction <- 100*round(observedbefore / observedtotal, 2)
-```
-
-The following graph shows the estimated growth of positive samples for every year (grey), with `r compyear1` (blue) and `r compyear2` (blue, dashed) selected for comparison, and estimates and observations for `r maxmosqbelieveyear` (red). The lines are modeled sample positive rates; the actual statewide positive sample rate for `r maxmosqbelieveyear` is shown here by grouping observations nearby in time.
-
-```{r mosqbymonth, include=TRUE, echo=FALSE, fig.width=6, fig.height=3}
-mosqmopreds <- expand.grid(year=minmosqbelieveyear:maxmosqbelieveyear,
-                           doy=seq(from=min(wnv$doy, na.rm=TRUE),
-                                   to  =max(wnv$doy, na.rm=TRUE), by=1))
-mosqmopreds$dminus <- mosqmopreds$doy - mean(wnv$doy, na.rm=TRUE)
-mosqmopreds$preds <- predict(infectglm, newdata=mosqmopreds, type="response", allow.new.levels=TRUE)
-
-mosqmopreds <- group_by(mosqmopreds, dminus, year)
-mosqmopreds <- dplyr::summarize(mosqmopreds,
-                         preds=mean(preds, na.rm=TRUE),
-                         doy=mean(doy, na.rm=TRUE),
-                             .groups="keep")
-thisyear1   <- mosqmopreds[mosqmopreds$year == maxmosqbelieveyear,]
-comparison1 <- mosqmopreds[mosqmopreds$year == compyear1,]
-comparison2 <- mosqmopreds[mosqmopreds$year == compyear2,]
-
-thisyeardot <- wnv[wnv$year == maxmosqbelieveyear,]
-
-if (sum(!is.na(thisyeardot$doy)) > 20) {
-
-  thisyeardot$rounddoy <- cut2(thisyeardot$doy, g=6)
-  thisyeardot <- group_by(thisyeardot, rounddoy)
-  thisyeardot <- dplyr::summarize(thisyeardot,
-                        meanpos = mean(wnv_result, na.rm=TRUE),
-                        meandoy = mean(doy, na.rm=TRUE),
-                             .groups="keep")
-  thisplot <- ggplot(data=mosqmopreds) + geom_line(data=mosqmopreds, aes(x=doy, y=preds, group=year),
-                                                   color="grey", alpha=0.5) +
-    geom_line(data=comparison1, aes(x=doy, y=preds), color="blue") +
-    geom_line(data=comparison2, aes(x=doy, y=preds), color="blue", linetype=2) +
-    geom_line(data=thisyear1, aes(x=doy, y=preds), color="red") +
-    geom_point(data=thisyeardot, aes(x=meandoy, y=meanpos), color="red") +
-    xlab("day of the year") + ylab("Vector pool positive rate") +
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_blank(),
-          axis.line = element_line(colour = "black"))
-
-} else {
-
-  thisplot <- ggplot(data=mosqmopreds) + geom_line(data=mosqmopreds, aes(x=doy, y=preds, group=year),
-                                                   color="grey", alpha=0.5) +
-    geom_line(data=comparison1, aes(x=doy, y=preds), color="blue") +
-    geom_line(data=comparison2, aes(x=doy, y=preds), color="blue", linetype=2) +
-    geom_line(data=thisyear1, aes(x=doy, y=preds), color="red") +
-    xlab("day of the year") + ylab("Vector pool positive rate") +
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_blank(),
-          axis.line = element_line(colour = "black"))
-
-}
-plot(thisplot)
 ```
 
 ## Human data
@@ -1090,7 +958,7 @@ doypredscurrent <- doypreds[doypreds$year == as.numeric(format(weekinquestion, "
 
 projected_districts.df <- left_join(district_shapes, doypredscurrent,
                                    by="district")
-projected_districts.df$riskcategory[is.na(projected_districts.df$riskcategory)] <- " Not able to model    "
+projected_districts.df$riskcategory[is.na(projected_districts.df$riskcategory)] <- " About average    "
 thisplotrisk <- ggplot(projected_districts.df) +
       geom_sf(aes(fill=riskcategory)) +
       ggtitle("") +
@@ -1183,9 +1051,6 @@ It is possible that district names in the human, mosquito, or weather data might
 humannotinshapefile <- diagnostic_humandistricts[!(diagnostic_humandistricts %in% diagnostic_shapefiledistricts)]
 if (length(humannotinshapefile) == 0) { humannotinshapefile <- "none" }
 
-mosquitonotinshapefile <- diagnostic_mosquitodistricts[!(diagnostic_mosquitodistricts %in% diagnostic_shapefiledistricts)]
-if (length(mosquitonotinshapefile) == 0) { mosquitonotinshapefile <- "none" }
-
 weathernotinshapefile <- diagnostic_weatherdistricts[!(diagnostic_weatherdistricts %in% diagnostic_shapefiledistricts)]
 if (length(weathernotinshapefile) == 0) { weathernotinshapefile <- "none" }
 ```
@@ -1193,8 +1058,6 @@ if (length(weathernotinshapefile) == 0) { weathernotinshapefile <- "none" }
 There are `r length(diagnostic_shapefiledistricts)` districts in the shapefile. This is the maximum number of districts ArboMAP will recognize in the human, mosquito, or weather data.
 
 There are `r length(diagnostic_humandistricts)` districts in the human WNV data. If some districts never reported cases, this number may be less than the number of districts in the shapefile. If there are more, there are likely misspellings in the human data file. Human districts not found in the district shapefile: `r humannotinshapefile`.
-
-There are `r length(diagnostic_mosquitodistricts)` districts in the mosquito WNV data. If some districts never reported mosquito data, this number may be less than the number of districts in the shapefile. Mosquito districts not found in the district shapefile: `r mosquitonotinshapefile`.
 
 There are `r length(diagnostic_weatherdistricts)` districts in the mosquito WNV data. If these data were downloaded with the GEE app, they should match the shapefile districts exactly. Weather districts not found in the district shapefile: `r weathernotinshapefile`.
 
